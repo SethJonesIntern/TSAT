@@ -1,18 +1,21 @@
 #include <Arduino.h>
+#include <ESP32Servo.h>
 
-// put function declarations here:
-int myFunction(int, int);
+#define SERVO_P 00
+#define SERVO_INITIAL_POS 00
+#define SERVO_DEPLOY_POS 00
+
+Servo myservo;
+
+
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+  myservo.attach(SERVO_P);
+  myservo.write(SERVO_INITIAL_POS);
+  
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
 }
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
-}

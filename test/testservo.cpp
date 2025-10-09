@@ -10,14 +10,13 @@ Servo myservo;
 
 
 void setup() {
-  myservo.attach(SERVO_P);                   // attach servo
-  myservo.write(SERVO_INITIAL_POS);         // Sets to initial servo position
+    myservo.attach(SERVO_P);
+    myservo.write(SERVO_INITIAL_POS);       // Attach, go to initial position, wait 3 seconds, go to desired position
+
+    delay(3000);
 
 
-
-
-
-
+    myservo.write(SERVO_DEPLOY_POS);
 }
 
 void loop() {

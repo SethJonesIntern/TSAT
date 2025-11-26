@@ -1,42 +1,77 @@
-#include <math.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BMP3XX.h>
-#include <Wire.h>
+#include <Arducam_Mega.h>
+#include <SPI.h>
+#include <SD.h>
 
-#define SEALEVELPRESSURE_HPA (1013.25)
+#define CAM_CS 17
+#define SD_CS 5
 
-Adafruit_BMP3XX bmp;
+#define SCK 18
+#define MISO 19
+#define MOSI 23
 
+Arducam_Mega myCAM(CAM_CS);
+uint8_t buffer[1024];
+int fileIndex = 0;
 
-float calculateAltitude(float atmospheric) {
-  atmospheric = atmospheric / 100.0;
-  return 44330.0 * (1.0 - pow(atmospheric / SEALEVELPRESSURE_HPA, 0.1903));
-} //Stolen Valor
+void setup() {
+  Serial.begin(115200);
 
+  SPI.begin(SCK, MISO, MOSI);
 
-void setup(){
-    Serial.begin(115200);
-    while (!Serial) { ; }                 // optional on some boards
-    if (!bmp.begin_I2C(0x77)) {
-        Serial.println(F("BMP388 not found at 0x77, trying 0x76..."));  //Standard addresses for the I2C
-        if (!bmp.begin_I2C(0x76)) {
-            Serial.println(F("ERROR: Could not find BMP388 sensor, CHECK WIRING"));
-            while (1) delay(10);
-        }
-    }
+  if (!SD.begin(SD_CS)) {
+    Serial.println("SD INIT FAIL");
+    while (1);
+  }
 
-    bmp.setPressureOversampling(BMP3_OVERSAMPLING_16X);
-    bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_7);
-    bmp.setOutputDataRate(BMP3_ODR_50_HZ);
+  // Create folder only once
+  SD.mkdir("/images");
 
-    bmp.performReading(); // discard first one
-    delay(100);
-    bmp.performReading(); // start using readings after this
+  uint8_t r = myCAM.begin();
+  if (r != CAM_ERR_SUCCESS) {
+    Serial.println("CAMERA INIT FAIL");
+    while (1);
+  }
+
+  Serial.println("Camera Ready");
 }
 
-void loop(){
-    if (!bmp.performReading()) { Serial.println("Read fail"); delay(200); return; }
-        float atmospheric = bmp.pressure;
-        Serial.print("Altitude is: ");Serial.println(calculateAltitude(atmospheric),2);
-        delay(1000);
+void loop() {
+
+  Serial.println("Capturing...");
+  myCAM.takePicture(CAM_IMAGE_MODE_FHD, CAM_IMAGE_PIX_FMT_JPG);
+
+  // Wait for camera to finish capturing
+  delay(50);
+
+  uint32_t totalLen = myCAM.getReceivedLength();
+  if (totalLen == 0) {
+    Serial.println("ERROR: No image data!");
+    return;
+  }
+
+  // Generate sequential filename: img000.jpg
+  char filename[32];
+  sprintf(filename, "/images/img%03d.jpg", fileIndex++);
+
+  File img = SD.open(filename, FILE_WRITE);
+  if (!img) {
+    Serial.println("FILE OPEN FAIL");
+    return;
+  }
+
+  // Read image in chunks
+  while (totalLen > 0) {
+    uint16_t len = min(totalLen, (uint32_t)1024);
+
+    myCAM.readBuff(buffer, len);
+    img.write(buffer, len);
+
+    totalLen -= len;
+  }
+
+  img.close();
+  Serial.print("Saved: ");
+  Serial.println(filename);
+
+  delay(3000); // 3-second interval
 }

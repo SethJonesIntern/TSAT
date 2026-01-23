@@ -3,7 +3,7 @@
 #include <SPI.h>
 #include <SD.h>
 
-// Camera SPI pins (VSPI)
+// Camera SPI pins of the (VSPI)
 #define CAM2_CS 21
 #define CAM1_CS 5
 #define SCK 18

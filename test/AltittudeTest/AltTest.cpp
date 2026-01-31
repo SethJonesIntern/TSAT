@@ -18,7 +18,7 @@ void setup(){
     Serial.begin(115200);
     while (!Serial) { ; }                 // optional on some boards
     if (!bmp.begin_I2C(0x77)) {
-        Serial.println(F("BMP388 not found at 0x77, trying 0x76..."));  //Standard addresses for the I2C
+        Serial.println(F("BMP388 not found at 0x77, trying 0x76..."));  //Standard addresses for the I2C PINS SDA 21 AND SCL 22
         if (!bmp.begin_I2C(0x76)) {
             Serial.println(F("ERROR: Could not find BMP388 sensor, CHECK WIRING"));
             while (1) delay(10);

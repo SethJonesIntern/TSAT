@@ -48,8 +48,6 @@
 // Reviever declarations
 RH_RF95 rf95(RF95_CS, RF95_INT);
 Servo servo1;
-int buttonValue = 0;
-int lastButtonValue = 0;
 
 // Message sent when the button is pressed
 uint8_t detachMsg[] = "Detach";
@@ -81,7 +79,7 @@ void setup()
     //BAROMETER INIT
     if (!bmp.begin_I2C(0x77))
     {
-        Serial.println(F("BMP388 not found at 0x77, trying 0x76...")); // Standard addresses for the I2C
+        Serial.println(F("BMP388 not found at 0x77, trying 0x76...")); // Standard addresses for the I2C  PINS SDA 21 AND SCL 22
         if (!bmp.begin_I2C(0x76))
         {
             Serial.println(F("ERROR: Could not find BMP388 sensor, CHECK WIRING"));

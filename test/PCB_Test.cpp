@@ -1,4 +1,4 @@
-//T-SAT A Air 
+//T-SAT Air 
 
 //libraries
 #include <Arducam_Mega.h>
@@ -17,8 +17,8 @@
 #include <Adafruit_BMP3XX.h>
 
 //Oled Display
-#define OLED_SCL 22 //22 or 15
-#define OLED_SDA 21 // prev 4
+#define OLED_SCL 22 
+#define OLED_SDA 21 
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -29,8 +29,8 @@
 Adafruit_BMP3XX bmp;
 
 // Camera SPI pins (VSPI)
-#define CAM2_CS 27 //prev 21, 17
-#define CAM1_CS 25  //prev 5
+#define CAM2_CS 27
+#define CAM1_CS 25 
 #define SCK 18
 #define MISO 19
 #define MOSI 23
@@ -46,7 +46,7 @@ Adafruit_BMP3XX bmp;
 #define RF95_INT  2 //GOOO
 #define RF95_RST  4
 
-//#define SERVO_PIN   32  // choose a free PWM-capable pin (NOT SPI SCK)
+#define SERVO_PIN   32  // choose a free PWM-capable pin (NOT SPI SCK)
 
 #define SPI_CLOCK_FREQ 8000000
 #define PIC_BUFFER_SIZE 4096 
@@ -67,12 +67,6 @@ SPIClass spiSD(HSPI);  // HSPI for SD card
 
 Arducam_Mega myCAM1(CAM1_CS);
 Arducam_Mega myCAM2(CAM2_CS);
-
-//for bmp 
-float calculateAltitude(float atmospheric) {
-  atmospheric = atmospheric / 100.0;
-  return 44330.0 * (1.0 - pow(atmospheric / SEALEVELPRESSURE_HPA, 0.1903));
-}
 
 uint8_t image_buf[PIC_BUFFER_SIZE];
 int pic_num = 0;
@@ -123,7 +117,7 @@ void setup(){
   // Initialize radio
   if (!rf95.init()) {
     Serial.println("RF INIT FAIL - continuing without radio");
-    // Don't halt - you might want to continue mission without comms
+    // continue mission without comms
   } else {
     Serial.println("RF module initialized");
     
@@ -245,6 +239,55 @@ void loop() {
   display.setCursor(0, 0);
   display_line = 0;
 
+  //1. Check RF
+  if (rf95.available()) {
+  Serial.println("[RF] MESSAGE DETECTED!");
+
+  uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
+  uint8_t len = sizeof(buf);
+
+  if (rf95.recv(buf, &len)) {
+    buf[len] = '\0';
+    Serial.print("Received: ");
+    Serial.println((char*)buf);
+    Serial.print("RSSI: ");
+    Serial.println(rf95.lastRssi());
+
+    if (strcmp((char*)buf, "Detach") == 0) {
+      Serial.println("DETACH command confirmed!");
+
+      // SEND REPLY IMMEDIATELY
+      const char reply[] = "Detached";
+      rf95.send((uint8_t*)reply, strlen(reply));
+      rf95.waitPacketSent();
+      Serial.println("ACK sent!");
+
+      // THEN do the servo action
+      printBoth("DETACHING!");
+      display.display();
+      triggerDetach();
+
+      Serial.println("Detach complete");
+      }
+    }
+  }
+
+  //2. BMP
+  if (bmp.performReading()) { 
+    float atmospheric = bmp.pressure;
+    float altitude = calculateAltitude(atmospheric);
+    
+    // Update display buffer (don't display yet)
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display_line = 0;
+    printBoth("Alt: " + String(altitude, 2) + "m");
+    printBoth("Pic: " + String(pic_num));
+  } else {
+    Serial.println("Altitude read failed"); 
+  }
+
+  //3. Cameras
   Serial.println("\n=== Starting synchronized capture ===");
   unsigned long captureStart = millis();
   
@@ -282,6 +325,7 @@ void loop() {
       check1.close();
     }
   }
+
   // Read and save from camera 2
   printBoth("\n--- Saving from Camera 2 ---");
   char fp2[32];
@@ -307,32 +351,9 @@ void loop() {
   pic_num++;
   
   printBoth("\n=== Capture complete ===");
+
   delay(3000);
 
-  //BMP
-   if (!bmp.performReading()) { Serial.println("Read fail"); delay(200); return; }
-      float atmospheric = bmp.pressure;
-      //Serial.print("Altitude is: ");Serial.println(calculateAltitude(atmospheric),2);
-      printBoth("Altitude is: ");Serial.println(calculateAltitude(atmospheric),2);
-      delay(1000); 
-  //RF 
-  if (rf95.available()) {
-    uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
-    uint8_t len = sizeof(buf);
-    
-    if (rf95.recv(buf, &len)) {
-      buf[len] = '\0';
-      Serial.print("Received: ");
-      Serial.println((char*)buf);
-      Serial.print("RSSI: ");
-      Serial.println(rf95.lastRssi(), DEC);
-      
-      const char* reply = "ACK";
-      rf95.send((uint8_t*)reply, strlen(reply));
-      rf95.waitPacketSent();
-      Serial.println("Reply sent");
-    }
-  }
 }
 
 void write_pic(Arducam_Mega &cam, File &dest){
@@ -421,6 +442,21 @@ void write_pic(Arducam_Mega &cam, File &dest){
 
   Serial.println("WARNING: No JPEG end flag found");
   dest.close();
+}
+
+//for bmp 
+float calculateAltitude(float atmospheric) {
+  atmospheric = atmospheric / 100.0;
+  return 44330.0 * (1.0 - pow(atmospheric / SEALEVELPRESSURE_HPA, 0.1903));
+}
+
+// function for servo 
+void triggerDetach() {
+  printBoth("DETACH: moving servo...");
+  servo1.write(180);     // detach position
+  delay(2000);           // hold for 2s (adjust as needed)
+  servo1.write(0);       // back to safe position (optional)
+  printBoth("Servo movement complete");
 }
 
 // Print to both Serial and OLED, with screen clearing/scrolling

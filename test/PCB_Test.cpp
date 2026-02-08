@@ -47,6 +47,8 @@ Adafruit_BMP3XX bmp;
 #define RF95_RST  4
 
 #define SERVO_PIN   32  // choose a free PWM-capable pin (NOT SPI SCK)
+#define SERVO_INITIAL_POS 0
+#define SERVO_DEPLOY_POS 90
 
 #define SPI_CLOCK_FREQ 8000000
 #define PIC_BUFFER_SIZE 4096 
@@ -71,6 +73,9 @@ Arducam_Mega myCAM2(CAM2_CS);
 uint8_t image_buf[PIC_BUFFER_SIZE];
 int pic_num = 0;
 int display_line = 0;
+
+//Servo 
+Servo myservo; 
 
 //Initializing functions 
 void write_pic(Arducam_Mega &cam, File &dest);
@@ -453,9 +458,10 @@ float calculateAltitude(float atmospheric) {
 // function for servo 
 void triggerDetach() {
   printBoth("DETACH: moving servo...");
-  servo1.write(180);     // detach position
-  delay(2000);           // hold for 2s (adjust as needed)
-  servo1.write(0);       // back to safe position (optional)
+  myservo.attach(SERVO_PIN);
+  myservo.write(SERVO_INITIAL_POS);
+  delay(3000); //delay 3ms
+  myservo.write(SERVO_DEPLOY_POS);
   printBoth("Servo movement complete");
 }
 

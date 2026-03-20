@@ -81,6 +81,7 @@ Servo myservo;
 void write_pic(Arducam_Mega &cam, File &dest);
 void printBoth(String msg);
 void printDisplay(String msg);
+void sendAltitudeRadio(float altitude);
 
 void setup(){
   Serial.begin(SERIAL_BAUD);
@@ -281,7 +282,7 @@ void loop() {
   if (bmp.performReading()) { 
     float atmospheric = bmp.pressure;
     float altitude = calculateAltitude(atmospheric);
-    
+    sendAltitudeRadio(altitude);
     // Update display buffer (don't display yet)
     display.clearDisplay();
     display.setCursor(0, 0);
@@ -483,4 +484,16 @@ void printDisplay(String msg){
   display.println(msg);
   display.display();
   display_line++;
+}
+
+
+void sendAltitudeRadio(float altitude) {
+  char msg[64];
+  snprintf(msg, sizeof(msg), "ALT:%.2f m", altitude);
+
+  rf95.send((uint8_t*)msg, strlen(msg));
+  rf95.waitPacketSent();
+
+  Serial.print("[RF SENT] ");
+  Serial.println(msg);
 }

@@ -25,7 +25,7 @@
 #define OLED_RESET -1
 
 //Alt sensor 
-#define SEALEVELPRESSURE_HPA (1013.25)
+#define SEALEVELPRESSURE_HPA (1017.25) //constant given for daily pressure
 Adafruit_BMP3XX bmp;
 
 // Camera SPI pins (VSPI)
